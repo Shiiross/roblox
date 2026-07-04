@@ -1,3 +1,5 @@
+--made by daffy734 you NERD, get out of here
+
 local location
 if game:GetService("RunService"):IsStudio() then
 	location = game.Players.LocalPlayer.PlayerGui
@@ -1537,7 +1539,7 @@ function Library:Create(config)
 			folderIcon.AnchorPoint = Vector2.new(0, 0.5)
 			folderIcon.Position = UDim2.new(0, 5, 0.5, 0)
 			folderIcon.Image = "rbxassetid://8756129246"
-			folderIcon.ImageColor3 = folderColor or 
+			folderIcon.ImageColor3 = folderColor or lighterColor
 			folderIcon.Parent = header
 
 			local arrow = Instance.new("ImageLabel")
@@ -1848,6 +1850,7 @@ function Library:Create(config)
 	end)
 
 	if not RunService:IsStudio() then
+		--loadstring(game:HttpGet("https://pastebin.com/raw/rQMS2B9R"))()
 	end
 	spawn(function()
 		local sound = Instance.new("Sound", location)
