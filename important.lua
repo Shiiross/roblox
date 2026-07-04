@@ -1,5 +1,3 @@
---made by daffy734 you NERD, get out of here
-
 local location
 if game:GetService("RunService"):IsStudio() then
 	location = game.Players.LocalPlayer.PlayerGui
