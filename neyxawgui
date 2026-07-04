@@ -1,4 +1,4 @@
-if game.PlaceId == 139609232261520 then
+if game.PlaceId == 94647229517154 then
 local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/Shiiross/roblox/refs/heads/main/important"))()
 
 local win = ui:Create({
