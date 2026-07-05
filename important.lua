@@ -1,3 +1,5 @@
+print ("-- Blue Color Deteched")
+
 local location
 if game:GetService("RunService"):IsStudio() then
 	location = game.Players.LocalPlayer.PlayerGui
