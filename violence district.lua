@@ -1,5 +1,5 @@
 --[[
-    Violence District
+    Made by t1futvct
 ]]
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -153,6 +154,33 @@ local function RefreshMapESP()
 
     for _, obj in ipairs(workspace:GetDescendants()) do
         ProcessMapObject(obj)
+    end
+end
+
+-- ESP Aç/Kapat Mantığı
+local function ToggleESPState(state)
+    if state ~= nil then
+        Settings.ESP.Enabled = state
+    else
+        Settings.ESP.Enabled = not Settings.ESP.Enabled
+    end
+
+    RefreshMapESP()
+
+    if not Settings.ESP.Enabled then
+        for _, p in ipairs(Players:GetPlayers()) do
+            ClearPlayerESP(p)
+        end
+        local nkLabel = IndicatorGui and IndicatorGui:FindFirstChild("NextKillerDisplay")
+        if nkLabel then nkLabel:Destroy() end
+        Library:Notify("ESP: KAPALI", 2)
+    else
+        Library:Notify("ESP: AÇIK", 2)
+    end
+
+    -- UI Togglena bilgi gönder (Varsa)
+    if Options and Options.MasterESP then
+        Options.MasterESP:SetValue(Settings.ESP.Enabled)
     end
 end
 
@@ -350,7 +378,6 @@ local function ListenSkillChecks()
                     local lr = line.Rotation % 360
                     local gr = goal.Rotation % 360
                     
-                    -- Açı aralığı 110 ile 118 arasında ayarlandı
                     local targetStart = (gr + 110) % 360
                     local targetEnd = (gr + 118) % 360
 
@@ -361,7 +388,6 @@ local function ListenSkillChecks()
                         isPressing = true
                         TriggerSkillCheckPress()
                         
-                        -- Seri skill checkler arası bekleme
                         task.wait(0.08)
                         isPressing = false
                     end
@@ -373,6 +399,14 @@ local function ListenSkillChecks()
         end)
     end)
 end
+
+-- RightAlt Tuş Dinleyicisi
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.RightAlt then
+        ToggleESPState()
+    end
+end)
 
 workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
@@ -444,15 +478,7 @@ MainESPGroup:AddToggle("MasterESP", {
     Text = "Enable ESP",
     Default = Settings.ESP.Enabled,
     Callback = function(v) 
-        Settings.ESP.Enabled = v
-        RefreshMapESP()
-        if not v then
-            for _, p in ipairs(Players:GetPlayers()) do
-                ClearPlayerESP(p)
-            end
-            local nkLabel = IndicatorGui and IndicatorGui:FindFirstChild("NextKillerDisplay")
-            if nkLabel then nkLabel:Destroy() end
-        end
+        ToggleESPState(v)
     end
 })
 
@@ -480,4 +506,4 @@ SetupGui()
 RefreshMapESP()
 ListenSkillChecks()
 
-Library:Notify("Açı Aralığı 110-118 Olarak Ayarlandı!", 4)
+Library:Notify("RightAlt: ESP Toggle Aktif!", 4)
