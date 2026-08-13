@@ -1,4 +1,4 @@
-print ("-- Blue Color Deteched")
+print (" Blue Color Deteched")
 
 local location
 if game:GetService("RunService"):IsStudio() then
