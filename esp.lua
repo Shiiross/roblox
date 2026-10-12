@@ -1,7 +1,3 @@
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
------
 pcall(function() setfflag("AdornShadingAPI", "true") end)
 task.wait(2) 
 local Players = game:GetService("Players")
