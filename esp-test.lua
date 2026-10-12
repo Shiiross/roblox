@@ -1,336 +1,393 @@
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
-
-pcall(function() setfflag("AdornShadingAPI", "true") end)
+--[[
+	ScriptStrike ESP + Arayüz
+	Konum: StarterPlayer > StarterPlayerScripts (LocalScript)
+	Arayüzü açıp kapatma: RightShift veya sağ üstteki "ESP" düğmesi
+]]
 
 local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local Camera = workspace.CurrentCamera
 local UserInputService = game:GetService("UserInputService")
 
--- Sadece ESP Yapılandırması
-_G.Config = {
-    Esp = true, 
-    EspBoxes = true, 
-    EspNames = true, 
-    EspHealthBar = true, 
-    EspDistance = true, 
-    EspTracers = false,  
-    EspHeadDot = true,
-    EspWeapon = true,
-    BoxColor = Color3.fromRGB(255, 255, 255),
-    NameColor = Color3.fromRGB(255, 255, 255),
-    HealthBarColor = Color3.fromRGB(0, 255, 0),
-    DistColor = Color3.fromRGB(255, 255, 255),
-    TracerColor = Color3.fromRGB(255, 255, 255),
-    HeadDotColor = Color3.fromRGB(255, 0, 0),
-    WeaponColor = Color3.fromRGB(255, 255, 255),
-    EnemyColor = Color3.fromRGB(150, 200, 60),
-    TeammateColor = Color3.fromRGB(60, 150, 200),
-    EspTeamMode = "Enemies",
-    UseTeamCheck = false,
-    EspChams = false,
-    ChamHiddenColor = Color3.fromRGB(255, 0, 0)
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+---------------------------------------------------------------------
+-- Ayarlar
+---------------------------------------------------------------------
+local Config = {
+	Enabled = false,
+	Chams = true,
+	Names = true,
+	Health = true,
+	Distance = true,
+	TeamMode = "Enemies", -- "Enemies" | "Teammates" | "All"
+	MaxDistance = 1000,
+	EnemyColor = Color3.fromRGB(255, 70, 70),
+	TeamColor = Color3.fromRGB(70, 160, 255),
 }
 
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/ewenja/HihiHub.gui-new/refs/heads/main/leake_gui_fix_KeyCode.Z_v4.lua"))()
-local Window = Library:Window({
-    Name = "Icanstoplarping Hub",
-    SubName = "ESP Only",
-    Logo = "120959262762131"
-})
+local TEAM_MODES = { "Enemies", "Teammates", "All" }
 
-Window:Category("Visuals")
-local VisualsPage = Window:Page({Name = "Visuals & ESP", Icon = "100050851789190", Columns = 2})
+---------------------------------------------------------------------
+-- ESP mantığı
+---------------------------------------------------------------------
+local espObjects = {} -- [player] = {Highlight, Billboard, Label}
 
-local EspSection = VisualsPage:Section({Name = "ESP Settings", Description = "Wallhack Settings", Icon = "100050851789190", Side = 1})
-local EspToggle = EspSection:Toggle({Name = "Enable ESP", Flag = "BS_Esp", Default = _G.Config.Esp, Callback = function(v) _G.Config.Esp = v end})
-EspSection:Toggle({Name = "Boxes", Flag = "BS_EspBoxes", Default = _G.Config.EspBoxes, Callback = function(v) _G.Config.EspBoxes = v end}):Settings(250):Label("Box Color"):Colorpicker({Name = "Color", Flag = "BoxColor", Default = _G.Config.BoxColor, Callback = function(v) _G.Config.BoxColor = v end})
-EspSection:Toggle({Name = "Names", Flag = "BS_EspNames", Default = _G.Config.EspNames, Callback = function(v) _G.Config.EspNames = v end}):Settings(250):Label("Name Color"):Colorpicker({Name = "Color", Flag = "NameColor", Default = _G.Config.NameColor, Callback = function(v) _G.Config.NameColor = v end})
-EspSection:Toggle({Name = "Health Bar", Flag = "BS_EspHealthBar", Default = _G.Config.EspHealthBar, Callback = function(v) _G.Config.EspHealthBar = v end}):Settings(250):Label("Health Bar Color"):Colorpicker({Name = "Color", Flag = "HealthBarColor", Default = _G.Config.HealthBarColor, Callback = function(v) _G.Config.HealthBarColor = v end})
-EspSection:Toggle({Name = "Distance", Flag = "BS_EspDistance", Default = _G.Config.EspDistance, Callback = function(v) _G.Config.EspDistance = v end}):Settings(250):Label("Distance Color"):Colorpicker({Name = "Color", Flag = "DistColor", Default = _G.Config.DistColor, Callback = function(v) _G.Config.DistColor = v end})
-EspSection:Toggle({Name = "Head Dot", Flag = "BS_EspHeadDot", Default = _G.Config.EspHeadDot, Callback = function(v) _G.Config.EspHeadDot = v end}):Settings(250):Label("Head Dot Color"):Colorpicker({Name = "Color", Flag = "HeadDotColor", Default = _G.Config.HeadDotColor, Callback = function(v) _G.Config.HeadDotColor = v end})
-EspSection:Toggle({Name = "Weapon", Flag = "BS_EspWeapon", Default = _G.Config.EspWeapon, Callback = function(v) _G.Config.EspWeapon = v end}):Settings(250):Label("Weapon Color"):Colorpicker({Name = "Color", Flag = "WeaponColor", Default = _G.Config.WeaponColor, Callback = function(v) _G.Config.WeaponColor = v end})
-EspSection:Toggle({Name = "Tracers", Flag = "BS_EspTracers", Default = _G.Config.EspTracers, Callback = function(v) _G.Config.EspTracers = v end}):Settings(250):Label("Tracer Color"):Colorpicker({Name = "Color", Flag = "TracerColor", Default = _G.Config.TracerColor, Callback = function(v) _G.Config.TracerColor = v end})
-EspSection:Toggle({Name = "Chams", Flag = "BS_EspChams", Default = _G.Config.EspChams, Callback = function(v) _G.Config.EspChams = v end}):Settings(250):Label("Hidden Color"):Colorpicker({Name = "Color", Flag = "ChamHiddenColor", Default = _G.Config.ChamHiddenColor, Callback = function(v) _G.Config.ChamHiddenColor = v end})
+local espFolder = Instance.new("Folder")
+espFolder.Name = "ScriptStrikeESP"
+espFolder.Parent = PlayerGui
 
-local TeamSection = VisualsPage:Section({Name = "Team Settings", Description = "Colors & Filter", Icon = "100050851789190", Side = 2})
-TeamSection:Dropdown({Name = "Team Mode", Flag = "EspTeamMode", Default = {_G.Config.EspTeamMode}, Items = {"Enemies", "Teammates", "All"}, Multi = false, Callback = function(v) _G.Config.EspTeamMode = v end})
-TeamSection:Toggle({Name = "Team Check", Flag = "BS_UseTeamCheck", Default = _G.Config.UseTeamCheck, Callback = function(v) _G.Config.UseTeamCheck = v end})
-TeamSection:Label("Colors"):Colorpicker({Name = "Enemy Color", Flag = "EnemyColor", Default = _G.Config.EnemyColor, Callback = function(v) _G.Config.EnemyColor = v end})
-TeamSection:Label("Teammate Color"):Colorpicker({Name = "Teammate Color", Flag = "TeammateColor", Default = _G.Config.TeammateColor, Callback = function(v) _G.Config.TeammateColor = v end})
-
-Window:Category("Config")
-local SettingsPage = Window:Page({Name = "Configuration", Icon = "108839695397679", Columns = 1})
-local UISettings = SettingsPage:Section({Name = "UI Settings", Description = "Menu Keybinds", Icon = "103180437044643", Side = 1})
-UISettings:Keybind({
-    Name = "Menu Toggle",
-    Flag = "GuiToggleKey",
-    Default = Enum.KeyCode.RightControl,
-    Callback = function()
-        Window:SetOpen(not Window.IsOpen)
-    end
-})
-
-Window:Init()
-
--- Takım Kontrolü
-local function isEnemy(p)
-    if not p or not p.Character then return false end
-    if not _G.Config.UseTeamCheck then return true end
-    if p == LP then return false end 
-    local LPTeamFolder = LP.Character and LP.Character.Parent
-    local PlayerTeamFolder = p.Character.Parent
-    if LP.Team and p.Team then
-        return LP.Team ~= p.Team
-    elseif LPTeamFolder and PlayerTeamFolder and LPTeamFolder.Name ~= "Players" then
-         return LPTeamFolder ~= PlayerTeamFolder
-    end
-    return true 
+local function isEnemy(player)
+	if not player.Team or not LocalPlayer.Team then
+		return true
+	end
+	return player.Team ~= LocalPlayer.Team
 end
 
-local ESP_Table = {}
-
-local function SetAllVisible(data, val)
-    if not data then return end
-    for k, d in pairs(data) do
-        if typeof(d) == "Instance" then
-            if d:IsA("BillboardGui") then d.Enabled = val end
-        elseif d.Visible ~= nil then 
-             pcall(function() d.Visible = val end)
-        end
-    end
+local function shouldShow(player)
+	if Config.TeamMode == "All" then
+		return true
+	elseif Config.TeamMode == "Enemies" then
+		return isEnemy(player)
+	else
+		return not isEnemy(player)
+	end
 end
 
-local function RemoveEsp(p)
-    if ESP_Table[p] then
-        for _, d in pairs(ESP_Table[p]) do 
-            if typeof(d) == "Instance" then d:Destroy()
-            elseif d.Remove then d:Remove() end
-        end
-        ESP_Table[p] = nil
-    end
+local function destroyEsp(player)
+	local o = espObjects[player]
+	if o then
+		if o.Highlight then o.Highlight:Destroy() end
+		if o.Billboard then o.Billboard:Destroy() end
+		espObjects[player] = nil
+	end
 end
 
-Players.PlayerRemoving:Connect(RemoveEsp)
+local function createEsp(player, character, root)
+	destroyEsp(player)
 
--- ESP Mantığı
-RunService.RenderStepped:Connect(function()
-    pcall(function() 
-        Camera = workspace.CurrentCamera
-        if not Camera then return end
-        
-        for _, p in pairs(Players:GetPlayers()) do
-            if p == LP then continue end
-            local data = ESP_Table[p]
-            local character = p.Character
-            if not character or not character.Parent then
-                if data then RemoveEsp(p) end
-                continue
-            end
-            local root = character:FindFirstChild("HumanoidRootPart")
-            local humanoid = character:FindFirstChild("Humanoid")
-            local head = character:FindFirstChild("Head")
-            local isValid = (root and humanoid and head and humanoid.Health > 0)
-            
-            if not isValid or not _G.Config.Esp then
-                if data then SetAllVisible(data, false) end
-                if not isValid and data then RemoveEsp(p) end 
-                continue
-            end
-            
-            local is_enemy = isEnemy(p)
-            local shouldDraw = false
-            if _G.Config.EspTeamMode == "All" then shouldDraw = true
-            elseif _G.Config.EspTeamMode == "Enemies" and is_enemy then shouldDraw = true
-            elseif _G.Config.EspTeamMode == "Teammates" and not is_enemy then shouldDraw = true
-            end
-            
-            if not shouldDraw then
-                if data then SetAllVisible(data, false) end
-                continue
-            end
-            
-            if not data then
-                ESP_Table[p] = {
-                    BoxOutline = Drawing.new("Square"),
-                    Box = Drawing.new("Square"),
-                    Name = Drawing.new("Text"),
-                    HealthBarOutline = Drawing.new("Square"),
-                    HealthBar = Drawing.new("Square"),
-                    DistanceText = Drawing.new("Text"),
-                    Tracer = Drawing.new("Line"),
-                    HeadDot = Drawing.new("Circle"),
-                    Weapon = Drawing.new("Text") 
-                }
-                data = ESP_Table[p]
-                data.BoxOutline.Visible = false
-                data.BoxOutline.Color = Color3.new(0,0,0)
-                data.BoxOutline.Thickness = 3
-                data.BoxOutline.Filled = false
-                data.HealthBarOutline.Visible = false
-                data.HealthBarOutline.Color = Color3.new(0,0,0)
-                data.HealthBarOutline.Filled = true
-            end
-            
-            local pos, vis = Camera:WorldToViewportPoint(root.Position)
-            if vis then
-                local sX = Camera.ViewportSize.X
-                local sY = Camera.ViewportSize.Y
-                if pos.X < 0 or pos.X > sX or pos.Y < 0 or pos.Y > sY then vis = false end
-            end
-            
-            if not vis then
-                 SetAllVisible(data, false)
-                 continue
-            end
-            
-            local currentFov = Camera.FieldOfView
-            local fovScale = 70 / currentFov
-            local size = math.max((2000 * fovScale) / math.max(pos.Z, 1), 10)
-            
-            -- Kutular
-            data.BoxOutline.Visible = _G.Config.EspBoxes
-            data.BoxOutline.Size = Vector2.new(size, size * 1.5)
-            data.BoxOutline.Position = Vector2.new(pos.X - size/2, pos.Y - (size*1.5)/2)
-            
-            data.Box.Visible = _G.Config.EspBoxes
-            data.Box.Size = Vector2.new(size, size * 1.5)
-            data.Box.Position = Vector2.new(pos.X - size/2, pos.Y - (size*1.5)/2)
-            data.Box.Color = _G.Config.BoxColor
-            data.Box.Thickness = 1
-            data.Box.Filled = false
-            
-            -- İsimler
-            data.Name.Visible = _G.Config.EspNames
-            data.Name.Text = p.Name
-            data.Name.Size = 14
-            data.Name.Center = true
-            data.Name.Outline = true
-            data.Name.Font = 2 
-            data.Name.Color = _G.Config.NameColor
-            data.Name.Position = Vector2.new(pos.X, pos.Y - (size*1.5)/2 - 16)
-            
-            -- Can Barı
-            if _G.Config.EspHealthBar then
-                local healthPer = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                data.HealthBarOutline.Visible = true
-                data.HealthBarOutline.Size = Vector2.new(4, size * 1.5 + 2)
-                data.HealthBarOutline.Position = Vector2.new(pos.X - size/2 - 7, pos.Y - (size*1.5)/2 - 1)
-                
-                data.HealthBar.Visible = true
-                data.HealthBar.Size = Vector2.new(2, size * 1.5 * healthPer)
-                data.HealthBar.Position = Vector2.new(pos.X - size/2 - 6, pos.Y - (size*1.5)/2 + (size * 1.5 * (1 - healthPer))) 
-                data.HealthBar.Color = Color3.fromRGB(255, 0, 0):Lerp(Color3.fromRGB(0, 255, 0), healthPer)
-                data.HealthBar.Filled = true
-            else
-                data.HealthBar.Visible = false
-                data.HealthBarOutline.Visible = false
-            end
-            
-            -- Mesafe
-            if _G.Config.EspDistance then
-                data.DistanceText.Visible = true
-                data.DistanceText.Text = math.floor((Camera.CFrame.Position - root.Position).Magnitude) .. "m"
-                data.DistanceText.Size = 12
-                data.DistanceText.Center = true
-                data.DistanceText.Outline = true
-                data.DistanceText.Font = 2
-                data.DistanceText.Color = _G.Config.DistColor
-                data.DistanceText.Position = Vector2.new(pos.X, pos.Y + (size*1.5)/2 + 5)
-            else
-                 data.DistanceText.Visible = false
-            end
-            
-            -- Tracers
-            if _G.Config.EspTracers then
-                data.Tracer.Visible = true
-                data.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
-                data.Tracer.To = Vector2.new(pos.X, pos.Y)
-                data.Tracer.Color = _G.Config.TracerColor
-                data.Tracer.Thickness = 1
-            else
-                 data.Tracer.Visible = false
-            end
-            
-            -- Head Dot
-            if _G.Config.EspHeadDot and head then
-                 local hPos, hVis = Camera:WorldToViewportPoint(head.Position)
-                 if hVis then
-                    data.HeadDot.Visible = true
-                    data.HeadDot.Position = Vector2.new(hPos.X, hPos.Y)
-                    data.HeadDot.Radius = 3
-                    data.HeadDot.Color = _G.Config.HeadDotColor
-                    data.HeadDot.Filled = true
-                 else
-                    data.HeadDot.Visible = false
-                 end
-            else
-                data.HeadDot.Visible = false
-            end
-            
-            -- Silah Bilgisi
-            if _G.Config.EspWeapon then
-                local attr = p:GetAttribute("CurrentEquipped")
-                local weaponName = "None"
-                if attr then
-                    local s, decoded = pcall(function() return game:GetService("HttpService"):JSONDecode(attr) end)
-                    if s and decoded and decoded.Name then weaponName = decoded.Name end
-                end
-                data.Weapon.Visible = true
-                data.Weapon.Text = weaponName
-                data.Weapon.Size = 13
-                data.Weapon.Center = false 
-                data.Weapon.Outline = true
-                data.Weapon.Font = 2
-                data.Weapon.Position = Vector2.new(pos.X + size/2 + 4, pos.Y - size/2) 
-                data.Weapon.Color = _G.Config.WeaponColor
-            else
-                data.Weapon.Visible = false
-            end
-        end
-    end)
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "ESPHighlight"
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillTransparency = 0.5
+	highlight.OutlineTransparency = 0
+	highlight.Adornee = character
+	highlight.Parent = espFolder
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ESPInfo"
+	billboard.Adornee = root
+	billboard.AlwaysOnTop = true
+	billboard.Size = UDim2.fromOffset(160, 40)
+	billboard.StudsOffset = Vector3.new(0, 3.2, 0)
+	billboard.Parent = espFolder
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextStrokeTransparency = 0.4
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.RichText = true
+	label.Parent = billboard
+
+	espObjects[player] = {
+		Highlight = highlight,
+		Billboard = billboard,
+		Label = label,
+		Character = character,
+	}
+end
+
+local function updatePlayer(player, myRoot)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+
+	local visible = Config.Enabled
+		and humanoid ~= nil
+		and root ~= nil
+		and humanoid.Health > 0
+		and shouldShow(player)
+
+	local dist = 0
+	if visible and myRoot then
+		dist = (root.Position - myRoot.Position).Magnitude
+		if dist > Config.MaxDistance then
+			visible = false
+		end
+	end
+
+	if not visible then
+		destroyEsp(player)
+		return
+	end
+
+	local o = espObjects[player]
+	if not o or o.Character ~= character or not o.Highlight.Parent then
+		createEsp(player, character, root)
+		o = espObjects[player]
+	end
+
+	local color = isEnemy(player) and Config.EnemyColor or Config.TeamColor
+
+	o.Highlight.Enabled = Config.Chams
+	o.Highlight.FillColor = color
+	o.Highlight.OutlineColor = color
+
+	local parts = {}
+	if Config.Names then
+		table.insert(parts, player.DisplayName)
+	end
+	if Config.Health then
+		local hp = math.floor(humanoid.Health)
+		table.insert(parts, string.format("%d HP", hp))
+	end
+	if Config.Distance and myRoot then
+		table.insert(parts, string.format("[%dm]", math.floor(dist)))
+	end
+
+	o.Billboard.Enabled = #parts > 0
+	o.Label.Text = table.concat(parts, "  ")
+	o.Label.TextColor3 = color
+end
+
+local accumulator = 0
+RunService.Heartbeat:Connect(function(dt)
+	accumulator += dt
+	if accumulator < 0.1 then -- saniyede ~10 güncelleme yeterli
+		return
+	end
+	accumulator = 0
+
+	local myChar = LocalPlayer.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			updatePlayer(player, myRoot)
+		end
+	end
 end)
 
--- Chams Döngüsü
-task.spawn(function()
-    RunService.RenderStepped:Connect(function()
-        local configChams = _G.Config.EspChams
-        local hiddenColor = _G.Config.ChamHiddenColor or Color3.fromRGB(255, 0, 0)
-        
-        for _, p in pairs(Players:GetPlayers()) do
-            if p.Character then
-                local shouldCham = configChams and p ~= LP and isEnemy(p)
+Players.PlayerRemoving:Connect(destroyEsp)
 
-                for _, v in pairs(p.Character:GetChildren()) do
-                    if v:IsA("BasePart") then
-                        if v.Name ~= "HumanoidRootPart" and v.Transparency >= 1 then v.Transparency = 0 end
-                        
-                        local box = v:FindFirstChild("BloxStrikeChamAdorn")
-                        if shouldCham and v.Name ~= "HumanoidRootPart" then
-                             if not box then
-                                  box = Instance.new("BoxHandleAdornment", v)
-                                  box.Name = "BloxStrikeChamAdorn"
-                                  box.Adornee = v
-                                  box.AlwaysOnTop = false 
-                                  box.ZIndex = -1 
-                                  box.Transparency = -1 
-                                  box.Shading = Enum.AdornShading.XRayShaded
-                             end
-                             if box then
-                                  box.Visible = true
-                                  box.Size = v.Size + Vector3.new(0.1, 0.1, 0.1)
-                                  box.Color3 = hiddenColor
-                             end
-                        else
-                             if box then box:Destroy() end
-                        end
-                    end
-                end
-            end
-        end
-    end)
+---------------------------------------------------------------------
+-- Arayüz
+---------------------------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "ScriptStrikeESPGui"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = PlayerGui
+
+local BG = Color3.fromRGB(24, 24, 30)
+local PANEL = Color3.fromRGB(36, 36, 46)
+local ACCENT = Color3.fromRGB(90, 140, 255)
+local OFF = Color3.fromRGB(70, 70, 82)
+
+local function corner(parent, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or 8)
+	c.Parent = parent
+end
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.fromOffset(260, 330)
+main.Position = UDim2.new(0, 30, 0.5, -165)
+main.BackgroundColor3 = BG
+main.BorderSizePixel = 0
+main.Visible = true
+main.Parent = gui
+corner(main, 10)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 36)
+title.BackgroundColor3 = PANEL
+title.BorderSizePixel = 0
+title.Font = Enum.Font.GothamBold
+title.TextSize = 15
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Text = "ScriptStrike  •  ESP"
+title.Parent = main
+corner(title, 10)
+
+-- Sürükleme
+do
+	local dragging, dragStart, startPos
+	title.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = main.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			main.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+end
+
+local list = Instance.new("Frame")
+list.Size = UDim2.new(1, -20, 1, -48)
+list.Position = UDim2.fromOffset(10, 44)
+list.BackgroundTransparency = 1
+list.Parent = main
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 6)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = list
+
+local order = 0
+local function nextOrder()
+	order += 1
+	return order
+end
+
+local function addToggle(text, key)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 34)
+	btn.LayoutOrder = nextOrder()
+	btn.BorderSizePixel = 0
+	btn.AutoButtonColor = false
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.Parent = list
+	corner(btn, 8)
+
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 12)
+	pad.Parent = btn
+
+	local function refresh()
+		local on = Config[key]
+		btn.Text = text .. ":  " .. (on and "AÇIK" or "KAPALI")
+		btn.BackgroundColor3 = on and ACCENT or OFF
+	end
+	refresh()
+
+	btn.MouseButton1Click:Connect(function()
+		Config[key] = not Config[key]
+		refresh()
+	end)
+end
+
+addToggle("ESP", "Enabled")
+addToggle("Chams (Siluet)", "Chams")
+addToggle("İsimler", "Names")
+addToggle("Can", "Health")
+addToggle("Mesafe", "Distance")
+
+-- Takım modu düğmesi
+do
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 34)
+	btn.LayoutOrder = nextOrder()
+	btn.BackgroundColor3 = PANEL
+	btn.BorderSizePixel = 0
+	btn.AutoButtonColor = true
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Parent = list
+	corner(btn, 8)
+
+	local function refresh()
+		local tr = { Enemies = "Düşmanlar", Teammates = "Takım arkadaşları", All = "Herkes" }
+		btn.Text = "Hedef:  " .. tr[Config.TeamMode]
+	end
+	refresh()
+
+	btn.MouseButton1Click:Connect(function()
+		local idx = table.find(TEAM_MODES, Config.TeamMode) or 1
+		Config.TeamMode = TEAM_MODES[idx % #TEAM_MODES + 1]
+		refresh()
+	end)
+end
+
+-- Mesafe kaydırıcısı (metin kutusu)
+do
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(1, 0, 0, 34)
+	row.LayoutOrder = nextOrder()
+	row.BackgroundColor3 = PANEL
+	row.BorderSizePixel = 0
+	row.Parent = list
+	corner(row, 8)
+
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.new(0.6, 0, 1, 0)
+	lbl.Position = UDim2.fromOffset(12, 0)
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextSize = 14
+	lbl.TextColor3 = Color3.new(1, 1, 1)
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Text = "Maks. mesafe"
+	lbl.Parent = row
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(0.35, -8, 0, 24)
+	box.Position = UDim2.new(0.65, 0, 0.5, -12)
+	box.BackgroundColor3 = OFF
+	box.BorderSizePixel = 0
+	box.Font = Enum.Font.Gotham
+	box.TextSize = 14
+	box.TextColor3 = Color3.new(1, 1, 1)
+	box.Text = tostring(Config.MaxDistance)
+	box.ClearTextOnFocus = false
+	box.Parent = row
+	corner(box, 6)
+
+	box.FocusLost:Connect(function()
+		local n = tonumber(box.Text)
+		if n then
+			Config.MaxDistance = math.clamp(n, 10, 5000)
+		end
+		box.Text = tostring(Config.MaxDistance)
+	end)
+end
+
+-- Arayüzü açıp kapatma
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.fromOffset(60, 30)
+openBtn.Position = UDim2.new(1, -70, 0, 10)
+openBtn.BackgroundColor3 = ACCENT
+openBtn.BorderSizePixel = 0
+openBtn.Font = Enum.Font.GothamBold
+openBtn.TextSize = 14
+openBtn.TextColor3 = Color3.new(1, 1, 1)
+openBtn.Text = "ESP"
+openBtn.Parent = gui
+corner(openBtn, 8)
+
+local function toggleGui()
+	main.Visible = not main.Visible
+end
+
+openBtn.MouseButton1Click:Connect(toggleGui)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.RightShift then
+		toggleGui()
+	end
 end)
