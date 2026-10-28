@@ -16,9 +16,9 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local Settings = {
-    ESP = { Enabled = true },
+    ESP = { Enabled = false },
     Automation = { AutoSkillCheck = true },
-    Visuals = { Fullbright = true },
+    Visuals = { Fullbright = false },
     Colors = {
         Killer = Color3.fromRGB(255, 60, 60),
         Survivor = Color3.fromRGB(64, 224, 255),
@@ -157,7 +157,6 @@ local function RefreshMapESP()
     end
 end
 
--- ESP Aç/Kapat Mantığı
 local function ToggleESPState(state)
     if state ~= nil then
         Settings.ESP.Enabled = state
@@ -178,7 +177,6 @@ local function ToggleESPState(state)
         Library:Notify("ESP: AÇIK", 2)
     end
 
-    -- UI Togglena bilgi gönder (Varsa)
     if Options and Options.MasterESP then
         Options.MasterESP:SetValue(Settings.ESP.Enabled)
     end
@@ -326,7 +324,6 @@ local function updateGeneratorProgress(generator)
     return false
 end
 
--- Tuş Tetikleme Mantığı
 local function TriggerSkillCheckPress()
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
     task.wait(0.01)
@@ -346,7 +343,6 @@ local function TriggerSkillCheckPress()
     end
 end
 
--- Çoklu (King's Scorch) & 110-118 Derece Hizalamalı Skill Check Dinleyicisi
 local function ListenSkillChecks()
     task.spawn(function()
         local prompt = PlayerGui:WaitForChild("SkillCheckPromptGui", 10)
@@ -400,7 +396,6 @@ local function ListenSkillChecks()
     end)
 end
 
--- RightAlt Tuş Dinleyicisi
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.RightAlt then
@@ -459,7 +454,6 @@ LocalPlayer.CharacterAdded:Connect(function()
     ListenSkillChecks()
 end)
 
--- Obsidian UI Sekme ve Butonları
 local Window = Library:CreateWindow({
     Title = "Game Utility Hub",
     Footer = "Mobile & PC Uyumlu",
@@ -472,7 +466,6 @@ local Tabs = {
     Visuals = Window:AddTab("Visuals", "sun")
 }
 
--- ESP Sekmesi Butonları
 local MainESPGroup = Tabs.ESP:AddLeftGroupbox("ESP Ayarları")
 MainESPGroup:AddToggle("MasterESP", {
     Text = "Enable ESP",
@@ -482,7 +475,6 @@ MainESPGroup:AddToggle("MasterESP", {
     end
 })
 
--- Auto Sekmesi Butonları
 local AutoGroup = Tabs.Automation:AddLeftGroupbox("Otomasyon Ayarları")
 AutoGroup:AddToggle("AutoSkillCheckToggle", {
     Text = "Auto Skill Check",
@@ -492,7 +484,6 @@ AutoGroup:AddToggle("AutoSkillCheckToggle", {
     end
 })
 
--- Visuals Sekmesi Butonları
 local VisGroup = Tabs.Visuals:AddLeftGroupbox("Görsel Ayarlar")
 VisGroup:AddToggle("FullbrightToggle", {
     Text = "Fullbright",
